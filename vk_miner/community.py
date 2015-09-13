@@ -45,6 +45,23 @@ class Community(object):
             if not hasattr(result, '__len__'):
                 result = (result,)
             return [Community.Group(self.owner, uid) for uid in result]
+
+        def get_neighbourhood_graph(self):
+            """Return subgraph induced by users's friends.
+
+            Returns:
+                networkx.Graph object.
+            """
+
+            neighbours = set(self.friends)
+            result = nx.Graph()
+            result.add_nodes_from(neighbours)
+            for neighbour in neighbours:
+                for friend in neighbour.friends:
+                    if friend in neighbours:
+                        result.add_edge(neighbour, friend)
+
+            return result
         
         def add_friends(self, friends):
             """Add one or more friends to user.

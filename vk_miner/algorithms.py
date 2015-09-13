@@ -227,8 +227,10 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
 
     # Load geographical data.
     print('Loading geodata...', flush=True)
+
     for c in cities:
         cities[c] = load_city(cities[c])
+
     print('Done!', flush=True)
 
     return Community(
@@ -259,3 +261,4 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
             index=[list(layers.keys()), ['layer'] * len(layers)]
         )
     )
+
