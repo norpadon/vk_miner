@@ -29,15 +29,15 @@ Just for lulz.
 ##Установка
 
 1.  Установите hdf5
-    ```bash
+    ```
     sudo apt-get install libhdf4-5 libhdf5-7-dev
     ```
 2.  Установите все питонячьи зависимости
-    ```bash
+    ```
     pip3 install -r requirements.txt
     ```
 3.  Выполните setup.py
-    ```bash
+    ```
     python3 setup.py install
     ```
     
