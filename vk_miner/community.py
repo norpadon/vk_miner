@@ -139,6 +139,12 @@ class Community(object):
 
         def __str__(self):
             return str(self.uid) + ' - ' + self.name
+
+        def __copy__(self):
+            return self.owner.get_user(self.uid)
+
+        def __deepcopy__(self, memo):
+            return self.__copy__()
             
     class Group(object):
         """Wrapper around entry in communities table."""
@@ -209,6 +215,12 @@ class Community(object):
             return '<Vk Group id: {self.uid}, name: {self.name}>'.format(
                 self=self
             )
+        
+        def __copy__(self):
+            return self.owner.get_group(self.uid)
+
+        def __deepcopy__(self, memo):
+            return self.__copy__()
             
     def _create(self):
         """Initialize data frames and cache."""
