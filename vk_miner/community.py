@@ -322,7 +322,7 @@ class Community(object):
 
         city_indexer = list(set(users.city_id.dropna()))
         cities = self.cities.loc[city_indexer]
-        
+
         university_indexer = list(set(users.university_id.dropna()))
         universities = self.universities.loc[university_indexer]
 
@@ -407,6 +407,12 @@ class Community(object):
         return g
 
     def plot_geodata(self, embed=False):
+        """Plot users on the map.
+
+        Args:
+            embed: True if map should be drawn in IPython Notebook cell.
+        """
+
         counter = Counter(u.city_id for u in self.get_users_list())
         data = []
         for city_id, count in counter.items():
