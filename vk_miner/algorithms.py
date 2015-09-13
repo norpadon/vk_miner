@@ -175,7 +175,7 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
             return api.execute.getUserData(user_id=uid).fmap(log)
 
         result = map_async(mapper, user_ids)
-        print('\nDone!', flush=True)
+        print('\rDone!', flush=True)
 
         def parse_item(item):
             if 'groups' in item and item['groups']:
@@ -226,10 +226,10 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
     member_keys, member_values = list(zip(*members))
 
     # Load geographical data.
-    print('Loading geodata...')
+    print('Loading geodata...', flush=True)
     for c in cities:
         cities[c] = load_city(cities[c])
-    print('Done!')
+    print('Done!', flush=True)
 
     return Community(
         users=pd.DataFrame.from_items(

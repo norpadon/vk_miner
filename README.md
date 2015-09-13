@@ -101,3 +101,5 @@ networkx.draw(ds.friends_graph())
     * Потому что автор -- криворукий лентяй. Если вы в состоянии добавить X, добавьте и пришлите PR, будет здорово.
 * Как связаться с автором?
     * norpadon@yandex.ru, vk.com/norpadon
+    
+![Котик](https://pp.vk.me/c624526/v624526773/417a6/fGsVuC7sXyc.jpg)
