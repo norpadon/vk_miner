@@ -1,4 +1,5 @@
 git+https://github.com/Norpadon/vk_async.git#egg=vk_async
+mplleaflet
 coverage
 tables
 jupyter
@@ -10,4 +11,3 @@ pandas
 scikit-learn
 matplotlib
 geopy
-mplleaflet

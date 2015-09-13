@@ -6,7 +6,11 @@ __author__ = 'Artur Chakhvadze (norpadon@yandex.ru)'
 
 import logging
 import pandas as pd
+import numpy as np
 import networkx as nx
+from matplotlib import pyplot as plt
+import mplleaflet
+from collections import Counter
 
 from functools import *
 
@@ -297,14 +301,16 @@ class Community(object):
         }
         indexer = list(good_users)
 
+        users = self.users.loc[list(good_users)]
+
         friends = self.friends.loc[indexer]
-        friends = friends.loc[friends.apply(good_users.__contains__)]
+        friends = friends[friends.apply(good_users.__contains__)]
 
         subscriptions = self.subscriptions.loc[indexer]
 
-        members = self.members.loc[self.members.apply(good_users.__contains__)]
+        members = self.members[self.members.apply(good_users.__contains__)]
 
-        groups = self.groups.loc[self.subscriptions]
+        groups = self.groups.loc[list(set(self.subscriptions))]
 
         user_attributes = self.user_attributes.sort_index()
         if not user_attributes.empty:
@@ -312,16 +318,24 @@ class Community(object):
 
         group_attributes = self.group_attributes.sort_index()
         if not group_attributes.empty:
-            group_attributes = group_attributes.loc[self.subscriptions, :]
+            group_attributes = group_attributes.loc[groups, :]
+
+        city_indexer = list(set(users.city_id.dropna()))
+        cities = self.cities.loc[city_indexer]
+        
+        university_indexer = list(set(users.university_id.dropna()))
+        universities = self.universities.loc[university_indexer]
 
         return Community(
-            users=self.users.loc[list(good_users)],
+            users=users,
             groups=groups,
             members=members,
             subscriptions=subscriptions,
             friends=friends,
             user_attributes=user_attributes,
-            group_attributes=group_attributes
+            group_attributes=group_attributes,
+            cities=cities,
+            universities=universities
         )
 
     def group_list(self):
@@ -391,3 +405,20 @@ class Community(object):
         g.add_edges_from(self.get_edgelist())
 
         return g
+
+    def plot_geodata(self, embed=False):
+        counter = Counter(u.city_id for u in self.get_users_list())
+        data = []
+        for city_id, count in counter.items():
+            if np.isnan(city_id):
+                continue
+            lat, long = self.cities.loc[int(city_id)][['latitude', 'longitude']]
+            if (lat, long) != (None, None):
+                data.append((long, lat, count * 3))
+        xs, ys, sizes = list(zip(*data))
+        plt.scatter(xs, ys, s=sizes)
+        if embed:
+            return mplleaflet.display()
+        else:
+            return mplleaflet.show()
+
