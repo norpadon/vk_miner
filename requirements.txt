@@ -1,0 +1,13 @@
+git+https://github.com/Norpadon/vk_async.git#egg=vk_async
+coverage
+tables
+jupyter
+ipython[notebook]
+networkx
+scipy
+numpy
+pandas
+scikit-learn
+matplotlib
+geopy
+mplleaflet
