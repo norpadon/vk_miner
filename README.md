@@ -30,7 +30,7 @@ Just for lulz.
 
 1.  Установите hdf5
     ```
-    sudo apt-get install libhdf4-5 libhdf5-7-dev
+    sudo apt-get install libhdf5-8-dev
     ```
 2.  Установите все питонячьи зависимости
     ```
