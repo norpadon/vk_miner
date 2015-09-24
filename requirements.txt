@@ -1,4 +1,6 @@
 git+https://github.com/Norpadon/vk_async.git#egg=vk_async
+git+https://github.com/Norpadon/tornado-httpclient-session.git#egg=tornado-httpclient-session
+zmq
 mplleaflet
 coverage
 tables

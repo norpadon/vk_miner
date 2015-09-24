@@ -5,14 +5,14 @@
 __author__ = 'Artur Chakhvadze (norpadon@yandex.ru)'
 
 import logging
+from functools import *
+from collections import Counter
+
 import pandas as pd
 import numpy as np
 import networkx as nx
 from matplotlib import pyplot as plt
 import mplleaflet
-from collections import Counter
-
-from functools import *
 
 logger = logging.getLogger('vk_miner')
 
@@ -21,10 +21,8 @@ class Community(object):
     """Community represents set of VK users, groups
     and relations between them.
     """
-    
     class User(object):
         """Wrapper around entry in users table."""
-
         def __init__(self, owner, uid):
             self.__dict__['owner'], self.__dict__['uid'] = owner, uid
             
@@ -52,7 +50,6 @@ class Community(object):
             Returns:
                 networkx.Graph object.
             """
-
             neighbours = set(self.friends)
             result = nx.Graph()
             result.add_nodes_from(neighbours)
@@ -72,7 +69,6 @@ class Community(object):
             Complexity:
                 O(len(community.friends)).
             """
-
             if not hasattr(friends, "__len__"):
                 friends = [friends]
             
@@ -92,7 +88,6 @@ class Community(object):
             Complexity:
                 O(len(community.subscriptions)).
             """
-
             if not hasattr(groups, "__len__"):
                 groups = [groups]
                 
@@ -148,7 +143,6 @@ class Community(object):
             
     class Group(object):
         """Wrapper around entry in communities table."""
-
         def __init__(self, owner, uid):
             self.__dict__['owner'], self.__dict__['uid'] = owner, uid
         
@@ -170,7 +164,6 @@ class Community(object):
             Complexity:
                 O(len(community.subscriptions)
             """
-
             if not hasattr(members, "__len__"):
                 members = [members]
                 
@@ -224,7 +217,6 @@ class Community(object):
             
     def _create(self):
         """Initialize data frames and cache."""
-        
         self.users = pd.DataFrame(
             columns=['name', 'age', 'city_id', 'university_id', 'last_seen'],
             index=pd.Index([], name='uid')
@@ -274,7 +266,6 @@ class Community(object):
             filename: path to the file with community data.
             **kwargs: values of tables.
         """
-
         self.fields = [
             'users', 'groups', 'cities', 'universities',
             'friends', 'members', 'subscriptions',
@@ -308,7 +299,6 @@ class Community(object):
         Args:
             filename: path to file.
         """
-
         with pd.HDFStore(filename) as store:
             for field in self.fields:
                 store[field] = self.__dict__[field]
@@ -322,7 +312,6 @@ class Community(object):
         Returns:
             Community object.
         """
-
         good_users = {
             user.uid
             for user in self.get_users_list()
@@ -373,7 +362,6 @@ class Community(object):
         Returns:
             List of Community.Group objects.
         """
-
         return [self.get_group(uid) for uid in self.groups.index]
 
     def get_users_list(self):
@@ -382,7 +370,6 @@ class Community(object):
         Returns:
             List of Community.User objects.
         """
-
         return [self.get_user(uid) for uid in self.users.index]
             
     def get_user(self, uid):
@@ -394,7 +381,6 @@ class Community(object):
         Returns:
             Community.User object.
         """
-
         return Community.User(self, uid)
     
     def get_group(self, uid):
@@ -406,7 +392,6 @@ class Community(object):
         Returns:
             Community.Group object.
         """
-
         return Community.Group(self, uid)
 
     def get_edgelist(self):
@@ -417,7 +402,6 @@ class Community(object):
             For each pair of friends {u, v},
             there are entries (u, v) and (v, u).
         """
-
         ids2users = partial(map, self.get_user)
         return list(zip(ids2users(self.friends), ids2users(self.friends.index)))
 
@@ -428,7 +412,6 @@ class Community(object):
         Returns:
             networkx.Graph object.
         """
-
         g = nx.Graph()
         g.add_nodes_from(self.get_users_list())
         g.add_edges_from(self.get_edgelist())
@@ -441,7 +424,6 @@ class Community(object):
         Args:
             embed: True if map should be drawn in IPython Notebook cell.
         """
-
         counter = Counter(u.city_id for u in self.get_users_list())
         data = []
         for city_id, count in counter.items():

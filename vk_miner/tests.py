@@ -8,7 +8,7 @@ import os
 import sys
 
 import unittest
-import vk_async
+import vk_async.fetcher
 import vk_miner.community
 import vk_miner.algorithms
 
@@ -27,10 +27,10 @@ class CommunityTestCase(unittest.TestCase):
 
 class VkMinerTestCase(unittest.TestCase):
     def setUp(self):
-        self.api = vk_async.API(
+        self.api = vk_async.fetcher.Fetcher(
             app_ids=APP_IDS,
-            user_login=USER_LOGIN,
-            user_password=USER_PASSWORD
+            username=USER_LOGIN,
+            password=USER_PASSWORD
         )
 
     def test_loading(self):

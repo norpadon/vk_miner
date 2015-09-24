@@ -4,18 +4,17 @@
 
 __author__ = 'Artur Chakhvadze (norpadon@yandex.ru)'
 
-from vk_miner.community import Community
-
 import geopy
 import logging
 import pandas as pd
 
+from tornado.ioloop import IOLoop
+from tornado import gen
+
+from vk_miner.community import Community
 from itertools import *
 from collections import deque, namedtuple
 from datetime import datetime, timedelta
-
-vklogger = logging.getLogger('vk_async')
-vklogger.disabled = True
 
 logger = logging.getLogger('vk_miner')
 
@@ -127,8 +126,8 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
             for pack in zip_longest(fillvalue=None, *args)
         ]
 
-    def map_async(mapper, data, pack_size=5):
-        """Map asyncronous computation over data and collect result.
+    def map_async(mapper, data):
+        """Map asynchronous computation over data and collect result.
 
         Args:
             mapper: function of kind a -> Future b.
@@ -138,12 +137,15 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
             List of b.
         """
 
-        packs = list(grouper(data, pack_size))
+        result = None
 
-        result = []
-        for pack in packs:
-            futures = [mapper(elem) for elem in pack]
-            result.extend(f.result() for f in futures)
+        @gen.coroutine
+        def compute():
+            nonlocal result
+            result = yield [mapper(elem) for elem in data]
+
+        loop = IOLoop.current()
+        loop.run_sync(compute)
 
         return result
 
@@ -160,22 +162,10 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
     def load_friends(user_ids):
         """Load friends of users with given ids."""
 
-        users_loaded = 0
-
-        def log(value):
-            nonlocal users_loaded
-            users_loaded += 1
-            print('\r{0} of {1} users loaded.'.format(
-                users_loaded,
-                len(user_ids)
-            ), end='', flush=True)
-            return value
-
         def mapper(uid):
-            return api.execute.getUserData(user_id=uid).fmap(log)
+            return api.execute.getUserData(user_id=uid)
 
         result = map_async(mapper, user_ids)
-        print('\rDone!', flush=True)
 
         def parse_item(item):
             if 'groups' in item and item['groups']:
