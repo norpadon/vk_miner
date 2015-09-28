@@ -46,10 +46,10 @@ Just for lulz.
 ```python
 from vk_miner.algorithms import *
 from vk_miner.community import *
-from vk_async import API
+from vk_async.fetcher import Fetcher 
 
 #Инициализируем API для запросов
-api = API(user_login='<Ваш номер телефона или email>', user_password='<Ваш пароль>', app_ids=[<Список ваших приложений>])
+api = Fetcher(user_login='<Ваш номер телефона или email>', user_password='<Ваш пароль>', app_ids=[<Список ваших приложений>])
 
 #Загружаем людей, находящихся на расстоянии <=2 от автора приложения.
 ds = load_friends_bfs(api, [170100773], 2)
