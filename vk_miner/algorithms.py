@@ -147,7 +147,7 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
         loop = IOLoop.current()
         loop.run_sync(compute)
 
-        return result
+        return [future.result() for future in result]
 
     def load_users(user_ids):
         """Load users with given ids."""
