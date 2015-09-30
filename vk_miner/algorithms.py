@@ -161,9 +161,22 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
 
     def load_friends(user_ids):
         """Load friends of users with given ids."""
+        counter = 0
 
+        def log_user_loaded():
+            nonlocal counter
+            counter += 1
+            print(
+                '{} of {} users loaded'.format(counter, len(user_ids)),
+                end='\r',
+                flush=True,
+            )
+
+        @gen.coroutine
         def mapper(uid):
-            return api.execute.getUserData(user_id=uid)
+            result = yield api.execute.getUserData(user_id=uid)
+            log_user_loaded()
+            return result
 
         result = map_async(mapper, user_ids)
 

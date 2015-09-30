@@ -429,9 +429,9 @@ class Community(object):
         for city_id, count in counter.items():
             if np.isnan(city_id):
                 continue
-            lat, long = self.cities.loc[int(city_id)][['latitude', 'longitude']]
-            if (lat, long) != (None, None):
-                data.append((long, lat, count * 3))
+            lat, lon = self.cities.loc[int(city_id)][['latitude', 'longitude']]
+            if (lat, lon) != (None, None):
+                data.append((lon, lat, count * 3))
         xs, ys, sizes = list(zip(*data))
         plt.scatter(xs, ys, s=sizes)
         if embed:
