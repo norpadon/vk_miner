@@ -11,6 +11,7 @@ import pandas as pd
 from tornado.ioloop import IOLoop
 from tornado import gen
 
+from vk_async.exceptions import VkAPIMethodError
 from vk_miner.community import Community
 from itertools import *
 from collections import deque, namedtuple
@@ -36,8 +37,7 @@ def get_coordinates(city):
 
         try:
             location = geocoder.geocode(city)
-        except Exception as e:
-            logger.warning(e)
+        except:
             location = None
 
         if location:
@@ -174,9 +174,13 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
 
         @gen.coroutine
         def mapper(uid):
-            result = yield api.execute.getUserData(user_id=uid)
-            log_user_loaded()
-            return result
+            try:
+                result = yield api.execute.getUserData(user_id=uid)
+                log_user_loaded()
+                return result
+            except VkAPIMethodError as e:
+                print(e)
+                return {}
 
         result = map_async(mapper, user_ids)
 
