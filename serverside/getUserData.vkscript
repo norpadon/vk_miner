@@ -1,0 +1,11 @@
+return {
+    "friends": API.friends.get({
+        "user_id": Args.user_id,
+        "fields": "universities, schools, city, bdate, last_seen"
+    }).items,
+    "groups": API.groups.get({
+        "user_id": Args.user_id,
+        "extended": 1
+    }).items
+};
+

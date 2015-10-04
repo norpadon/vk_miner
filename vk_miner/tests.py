@@ -20,7 +20,7 @@ APP_IDS = [] # API/Client id.
 USER_LOGIN = ''
 USER_PASSWORD = ''
 
-from test_props import APP_IDS, USER_LOGIN, USER_PASSWORD, MY_ID
+from test_props import APP_IDS, USER_LOGIN, USER_PASSWORD, MY_ID, GROUP_ID
 
 class CommunityTestCase(unittest.TestCase):
     pass
@@ -33,9 +33,15 @@ class VkMinerTestCase(unittest.TestCase):
             password=USER_PASSWORD
         )
 
-    def test_loading(self):
+    def test_loading_friends(self):
         friends = vk_miner.algorithms.load_friends_bfs(self.api, [MY_ID], 2)
+        friends.save('friends.hdf5')
         self.assertFalse(friends.users.empty)
+
+    def test_loading_group(self):
+        users = vk_miner.algorithms.load_group_members(self.api, GROUP_ID)
+        users.save('group.hdf5')
+        self.assertFalse(users.users.empty)
 
 if __name__ == '__main__':
     unittest.main()

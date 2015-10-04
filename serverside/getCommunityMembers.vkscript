@@ -1,0 +1,15 @@
+var result = [];
+var count = 10000000;
+var offset = 0;
+while (offset < count) {
+    var qresult = API.groups.getMembers({
+        "group_id": Args.group_id,
+        "fields": "universities, schools, city, bdate, last_seen",
+        "offset": offset
+    });
+    offset = offset + 1000;
+    count = qresult.count;
+    result = result + qresult.items;
+}
+return result;
+

@@ -28,18 +28,19 @@ Just for lulz.
 
 ##Установка
 
-1.  Установите hdf5
+1.  Установите hdf5.
     ```
     sudo apt-get install libhdf5-8-dev
     ```
-2.  Установите все питонячьи зависимости
+2.  Установите все питонячьи зависимости.
     ```
     pip3 install -r requirements.txt
     ```
-3.  Выполните setup.py
+3.  Выполните setup.py.
     ```
     python3 setup.py install
     ```
+4. Добавьте в свои приложения хранимые процедуры из папки serverside.
     
 ##Использование
 

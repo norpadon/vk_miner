@@ -4,48 +4,15 @@
 
 __author__ = 'Artur Chakhvadze (norpadon@yandex.ru)'
 
-import geopy
-import logging
-import pandas as pd
+from itertools import *
+from functools import *
 
-from tornado.ioloop import IOLoop
+import pandas as pd
 from tornado import gen
 
 from vk_async.exceptions import VkAPIMethodError
 from vk_miner.community import Community
-from itertools import *
-from collections import deque, namedtuple
-from datetime import datetime, timedelta
-
-logger = logging.getLogger('vk_miner')
-
-city_cache = {}
-
-
-def get_coordinates(city):
-    """Load latitude and longitude of city with given name.
-
-    Args:
-        city: name of the city.
-
-    Returns:
-        (latitude, longitude) of city or (None, None) if city is unknown.
-    """
-
-    if city not in city_cache:
-        geocoder = geopy.geocoders.Yandex()
-
-        try:
-            location = geocoder.geocode(city)
-        except:
-            location = None
-
-        if location:
-            city_cache[city] = (location.latitude, location.longitude)
-        else:
-            city_cache[city] = (None, None)
-
-    return city_cache[city]
+from vk_miner.utils import *
 
 
 def load_friends_bfs(api, roots, depth, preloaded=None):
@@ -65,89 +32,8 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
     max_users_per_query = 1000
     user_fields = 'universities, schools, city, bdate, last_seen'
 
-    cities, universities, groups, users = preloaded or [{} for i in range(4)]
+    cities, universities, groups, users = preloaded or [{} for _ in range(4)]
     friends, members = [[], []]
-
-    User = namedtuple(
-        'User',
-        ['name', 'age', 'city_id', 'university_id', 'last_seen']
-    )
-
-    def parse_user(entry):
-        """Load user's data from it's dict'ed JSON representation."""
-
-        uid = int(entry['id'])
-        name = entry['first_name'] + ' ' + entry['last_name']
-
-        university_name, university_id = None, None
-        if 'universities' in entry and entry['universities']:
-            university_name = entry['universities'][0]['name'].strip()
-            university_id = int(entry['universities'][0]['id'])
-            universities[university_id] = university_name
-
-        city_name, city_id = None, None
-        if 'city' in entry and entry['city']:
-            city_name = entry['city']['title'].strip()
-            city_id = int(entry['city']['id'])
-            cities[city_id] = city_name
-
-        age = None
-        if 'bdate' in entry and entry['bdate']:
-            dmy = entry['bdate'].split('.')
-            if len(dmy) == 3:
-                age = 2015 - int(dmy[2])
-
-        last_seen = datetime.min
-        if 'last_seen' in entry and entry['last_seen']:
-            last_seen = int(entry['last_seen']['time'])
-            last_seen = datetime.fromtimestamp(last_seen)
-
-        users[uid] = User(name, age, city_id, university_id, last_seen)
-        return uid
-
-    def parse_group(entry):
-        """Load group data from it's dict'ed JSON representation."""
-        group_name = entry['name'].strip()
-        group_id = int(entry['id'])
-        groups[group_id] = group_name
-        return group_id
-
-    def load_city(name):
-        """Load city data from it's name."""
-        latitude, longitude = get_coordinates(name)
-        return [name, latitude, longitude]
-
-    def grouper(iterable, n):
-        """Collect data into fixed-length chunks or blocks"""
-        # grouper('ABCDEFG', 3, 'x') --> ABC DEF G
-        args = [iter(iterable)] * n
-        return [
-            filter(None.__ne__, pack)
-            for pack in zip_longest(fillvalue=None, *args)
-        ]
-
-    def map_async(mapper, data):
-        """Map asynchronous computation over data and collect result.
-
-        Args:
-            mapper: function of kind a -> Future b.
-            data: list of a.
-
-        Returns:
-            List of b.
-        """
-
-        result = None
-
-        @gen.coroutine
-        def compute():
-            nonlocal result
-            result = yield [mapper(elem) for elem in data]
-
-        loop = IOLoop.current()
-        loop.run_sync(compute)
-
-        return result
 
     def load_users(user_ids):
         """Load users with given ids."""
@@ -157,7 +43,10 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
 
         result = map_async(mapper, grouper(user_ids, max_users_per_query))
 
-        return [parse_user(item) for item in chain(*result)]
+        return [
+            parse_user(item, users, cities, universities)
+            for item in chain(*result)
+        ]
 
     def load_friends(user_ids):
         """Load friends of users with given ids."""
@@ -172,27 +61,18 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
                 flush=True,
             )
 
-        @gen.coroutine
-        def mapper(uid):
-            try:
-                result = yield api.execute.getUserData(user_id=uid)
-                log_user_loaded()
-                return result
-            except VkAPIMethodError as e:
-                print(e)
-                return {}
-
-        result = map_async(mapper, user_ids)
-
         def parse_item(item):
             if 'groups' in item and item['groups']:
-                subscriptions = [parse_group(it) for it in item['groups']]
+                subscriptions = [
+                    parse_group(it, groups)
+                    for it in item['groups']
+                ]
             else:
                 subscriptions = []
 
             if 'friends' in item and item['friends']:
                 friendlist = [
-                    parse_user(entry)
+                    parse_user(entry, users, cities, universities)
                     for entry in item['friends']
                     if 'deactivated' not in entry
                 ]
@@ -201,14 +81,28 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
 
             return friendlist, subscriptions
 
-        return [parse_item(item) for item in result]
+        @gen.coroutine
+        def mapper(uid):
+            try:
+                result = yield api.execute.getUserData(user_id=uid)
+                log_user_loaded()
+                return parse_item(result)
+            except VkAPIMethodError as e:
+                print(e)
+                return {}
+
+        return map_async(mapper, user_ids)
 
     print('Loading roots...', flush=True)
     visited = set()
     not_visited = set(load_users(roots))
-    layers = {u: 0 for u in roots}
+    layers = {u: 0 for u in not_visited}
+
     for i in range(1, depth + 1):
-        print('Loading users from layer {0} of {1}:'.format(i, depth), flush=True)
+        print(
+            'Loading users from layer {0} of {1}:'.format(i, depth),
+            flush=True
+        )
 
         queue = list(not_visited)
         chunk = load_friends(queue)
@@ -268,4 +162,33 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
             index=[list(layers.keys()), ['layer'] * len(layers)]
         )
     )
+
+
+def load_group_members(api, group_id):
+    """Load graph of group members.
+
+    Args:
+        api: instance of vk_async api to make queries from.
+        group_id: id of group.
+
+    Returns:
+        Community object with loaded data.
+    """
+    cities, universities, groups, users = [{} for _ in range(4)]
+
+    def mapper(group_id):
+        return api.execute.getCommunityMembers(group_id=group_id)
+
+    print("Loading list of group members...")
+    raw_members = map_async(mapper, [group_id])[0]
+    members = [
+        parse_user(entry, users, cities, universities)
+        for entry in raw_members
+    ]
+
+    preloaded = cities, universities, groups, users
+    return load_friends_bfs(api, members, 1, preloaded).filter_users(
+        lambda u: u.layer < 1
+    )
+
 
