@@ -151,17 +151,19 @@ class Community(object):
             '_friends', '_members', '_subscriptions',
             '_user_attributes', '_group_attributes',
         ]
-        
-        if path:
-            json = load(open(path))
 
-        for field in self.fields:
-            self.__dict__[field] = json[field] if path else {}
+        if path:
+            data = load(open(path))
+        else:
+            data = {}
 
         for key, mapping in kwargs.items():
             field = '_' + key
             if field in self.fields:
-                self.__dict__[field] = {int(k): v for k, v in mapping.items()}
+                data[field] = mapping
+
+        for field in self.fields:
+            self.__dict__[field] = {int(k): v for k, v in data[field].items()}
 
         for user_id in self._users:
             self._users[user_id] = User(*self._users[user_id])
