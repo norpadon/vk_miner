@@ -37,11 +37,17 @@ class Community(object):
 
         @property
         def university(self):
-            return self.owner._universities[self.university_id]
+            if self.university_id:
+                return self.owner._universities[self.university_id]
+            else:
+                return ''
 
         @property
         def city(self):
-            return self.owner._cities[self.university_id][0]
+            if self.city_id:
+                return self.owner._cities[self.university_id][0]
+            else:
+                return ''
 
         def get_neighbourhood_graph(self):
             """Return subgraph induced by users's friends.
@@ -152,10 +158,10 @@ class Community(object):
         for field in self.fields:
             self.__dict__[field] = json[field] if path else {}
 
-        for key, value in kwargs.items():
+        for key, mapping in kwargs.items():
             field = '_' + key
             if field in self.fields:
-                self.__dict__[field] = value
+                self.__dict__[field] = {int(k): v for k, v in mapping.items()}
 
         for user_id in self._users:
             self._users[user_id] = User(*self._users[user_id])

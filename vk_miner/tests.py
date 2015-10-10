@@ -39,7 +39,7 @@ class VkMinerTestCase(unittest.TestCase):
     def test_loading_friends(self):
         friends = vk_miner.algorithms.load_friends_bfs(self.api, [MY_ID], 2)
         friends.save_json('test.json')
-        self.assertFalse(len(friends.get_users()) == 0)
+        self.assertFalse(len(list(friends.get_users())) == 0)
 
     #def test_loading_group(self):
     #    users = vk_miner.algorithms.load_group_members(self.api, GROUP_ID)

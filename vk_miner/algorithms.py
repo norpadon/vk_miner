@@ -137,6 +137,12 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
 
     user_attributes = {uid: {'layer': layer} for uid, layer in layers.items()}
 
+    for user_id in users:
+        if user_id not in friends:
+            friends[user_id] = []
+        if user_id not in subscriptions:
+            subscriptions[user_id] = []
+
     return Community(
             users=users,
             groups=groups,
