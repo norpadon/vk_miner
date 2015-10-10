@@ -61,7 +61,7 @@ class Community(object):
         
         def __getattr__(self, name):
             if name in User._fields:
-                return self.owner._users[self.uid].__getattr__(name)
+                return getattr(self.owner._users[self.uid], name)
             else:
                 return self.owner._user_attributes[self.uid][name]
 
