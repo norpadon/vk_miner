@@ -45,7 +45,7 @@ class Community(object):
         @property
         def city(self):
             if self.city_id:
-                return self.owner._cities[self.сity_id][0]
+                return self.owner._cities[self.city_id][0]
             else:
                 return ''
 
