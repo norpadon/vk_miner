@@ -106,7 +106,7 @@ def parse_user(entry, users, cities, universities):
     last_seen = datetime.min
     if 'last_seen' in entry and entry['last_seen']:
         last_seen = int(entry['last_seen']['time'])
-        last_seen = datetime.fromtimestamp(last_seen)
+        last_seen = str(datetime.fromtimestamp(last_seen))
 
     users[uid] = User(name, age, city_id, university_id, last_seen)
     return uid

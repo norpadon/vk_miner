@@ -32,8 +32,11 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
     max_users_per_query = 1000
     user_fields = 'universities, schools, city, bdate, last_seen'
 
-    cities, universities, groups, users = preloaded or [{} for _ in range(4)]
-    friends, members = [[], []]
+    if not preloaded:
+        preloaded = [{} for _ in range(6)]
+
+    cities, universities, groups, users, friends, subscriptions = preloaded
+    members = {}
 
     def load_users(user_ids):
         """Load users with given ids."""
@@ -107,24 +110,22 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
         queue = list(not_visited)
         chunk = load_friends(queue)
         new_layer = set()
-        for j, pair in enumerate(chunk):
-            friendlist, subscriptions = pair
+        for j, user_data in enumerate(chunk):
             uid = queue[j]
-            for fid in friendlist:
-                friends.extend([(uid, fid), (fid, uid)])
-            for gid in subscriptions:
-                members.append((gid, uid))
+            friends[uid], subscriptions[uid] = user_data
 
-            new_layer.update(friendlist)
+            for group_id in subscriptions[uid]:
+                if group_id not in members:
+                    members[group_id] = []
+                members[group_id].append(uid)
+
+            new_layer.update(friends[uid])
 
         visited.update(not_visited)
         new_layer -= visited
         not_visited = new_layer
         for u in new_layer:
             layers[u] = i
-
-    friend_keys, friend_values = list(zip(*friends))
-    member_keys, member_values = list(zip(*members))
 
     # Load geographical data.
     print('Loading geodata...', flush=True)
@@ -134,34 +135,19 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
 
     print('Done!', flush=True)
 
+    user_attributes = {uid: {'layer': layer} for uid, layer in layers.items()}
+
     return Community(
-        users=pd.DataFrame.from_items(
-            users.items(),
-            orient='index',
-            columns=User._fields
-        ),
-        cities=pd.DataFrame.from_items(
-            cities.items(),
-            orient='index',
-            columns=['city', 'latitude', 'longitude']
-        ),
-        universities=pd.Series(
-            list(universities.values()),
-            name='university',
-            index=list(universities.keys())
-        ),
-        groups=pd.Series(
-            list(groups.values()),
-            name='group',
-            index=list(groups.keys())
-        ),
-        friends=pd.Series(friend_values, index=friend_keys),
-        members=pd.Series(member_values, index=member_keys),
-        user_attributes=pd.Series(
-            list(layers.values()),
-            index=[list(layers.keys()), ['layer'] * len(layers)]
+            users=users,
+            groups=groups,
+            members=members,
+            subscriptions=subscriptions,
+            friends=friends,
+            user_attributes=user_attributes,
+            group_attributes={},
+            cities=cities,
+            universities=universities,
         )
-    )
 
 
 def load_group_members(api, group_id):

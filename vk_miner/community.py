@@ -4,17 +4,18 @@
 
 __author__ = 'Artur Chakhvadze (norpadon@yandex.ru)'
 
-import logging
+import os
 from functools import *
 from collections import Counter
+from json import load, dump
 
 import pandas as pd
 import numpy as np
 import networkx as nx
-from matplotlib import pyplot as plt
 import mplleaflet
+from matplotlib import pyplot as plt
 
-logger = logging.getLogger('vk_miner')
+from vk_miner.utils import User
 
 
 class Community(object):
@@ -28,21 +29,19 @@ class Community(object):
             
         @property
         def friends(self):
-            if self.uid not in self.owner.friends:
-                return ()
-            result = self.owner.friends.loc[self.uid]
-            if not hasattr(result, '__len__'):
-                result = (result,)
-            return [Community.User(self.owner, uid) for uid in result]
+            return self.owner._friends[self.uid]
         
         @property
         def groups(self):
-            if self.uid not in self.owner.subscriptions:
-                return ()
-            result = self.owner.subscriptions.loc[self.uid]
-            if not hasattr(result, '__len__'):
-                result = (result,)
-            return [Community.Group(self.owner, uid) for uid in result]
+            return self.owner._subscriptions[self.uid]
+
+        @property
+        def university(self):
+            return self.owner._universities[self.university_id]
+
+        @property
+        def city(self):
+            return self.owner._cities[self.university_id][0]
 
         def get_neighbourhood_graph(self):
             """Return subgraph induced by users's friends.
@@ -60,62 +59,11 @@ class Community(object):
 
             return result
         
-        def add_friends(self, friends):
-            """Add one or more friends to user.
-
-            Args:
-                friends: Community.User object ot list of them.
-
-            Complexity:
-                O(len(community.friends)).
-            """
-            if not hasattr(friends, "__len__"):
-                friends = [friends]
-            
-            us = friends + [self.uid] * len(friends)
-            vs = list(us); vs.reverse()
-            
-            self.owner.friends = self.owner.friends.append(
-                pd.Series(us, index=vs)
-            )
-        
-        def add_groups(self, groups):
-            """Add one or more subscriber to group.
-
-            Args:
-                groups: Community.Group object ot list of them.
-
-            Complexity:
-                O(len(community.subscriptions)).
-            """
-            if not hasattr(groups, "__len__"):
-                groups = [groups]
-                
-            us = [self.uid] * len(groups)
-                
-            self.owner.subscriptions = self.owner.subscriptions.append(
-                pd.Series(groups, index=us)
-            )
-
-            self.owner.members = self.owner.members.append(
-                pd.Series(us, index=groups)
-            )
-           
-        def __setattr__(self, name, value):
-            if name == 'uid':
-                raise AttributeError()
-            if name in self.owner.users.columns:
-                self.owner.users[name][self.uid] = value
-            else:
-                self.owner.user_attributes.loc[self.uid, name] = value
-        
         def __getattr__(self, name):
-            # If attribute is 'built in', take it from the users table,
-            # otherwise, try to find it in attributes table.
-            if name in self.owner.users.columns:
-                return self.owner.users[name][self.uid]
+            if name in User._fields:
+                return self.owner._users[self.uid].__getattr__(name)
             else:
-                return self.owner.user_attributes.loc[self.uid, name]
+                return self.owner._user_attributes[self.uid][name]
 
         def __eq__(self, other):
             return all([
@@ -145,51 +93,17 @@ class Community(object):
         """Wrapper around entry in communities table."""
         def __init__(self, owner, uid):
             self.__dict__['owner'], self.__dict__['uid'] = owner, uid
-        
+
+        @property
+        def name(self):
+            return self.owner._groups[self.uid]
+
         @property
         def members(self):
-            if self.uid not in self.owner.members:
-                return ()
-            result = self.owner.members.loc[self.uid]
-            if isinstance(result, int):
-                result = [result]
-            return [Community.User(self.owner, uid) for uid in result]
-        
-        def add_members(self, members):
-            """Add one or more members to community.
+            return self.owner._members[self.uid]
 
-            Args:
-                members: Community.Group object ot list of them.
-
-            Complexity:
-                O(len(community.subscriptions)
-            """
-            if not hasattr(members, "__len__"):
-                members = [members]
-                
-            us = [self.uid] * len(members)
-                
-            self.owner.members = self.owner.subscriptions.append(
-                pd.Series(members, index=us)
-            )
-
-            self.owner.subscriptions = self.owner.members.append(
-                pd.Series(us, index=members)
-            )
-           
-        def __setattr__(self, name, value):
-            if name == 'uid':
-                raise AttributeError
-            if name == 'name':
-                self.owner.groups[self.uid] = value
-            else:
-                self.owner.group_attributes.loc[self.uid, name] = value
-        
         def __getattr__(self, name):
-            if name == 'name':
-                return self.owner.groups[self.uid]
-            else:
-                return self.owner.group_attributes.loc[self.uid, name]
+            return self.owner._group_attributes[self.uid][name]
 
         def __eq__(self, other):
             return all([
@@ -214,94 +128,46 @@ class Community(object):
 
         def __deepcopy__(self, memo):
             return self.__copy__()
-            
-    def _create(self):
-        """Initialize data frames and cache."""
-        self.users = pd.DataFrame(
-            columns=['name', 'age', 'city_id', 'university_id', 'last_seen'],
-            index=pd.Index([], name='uid')
-        )
         
-        self.groups = pd.Series(
-            name='group',
-            index=pd.Index([], name='uid')
-        )
-
-        self.universities = pd.Series(
-            name='university',
-            index=pd.Index([], name='uid')
-        )
-
-        self.cities = pd.DataFrame(
-            columns=['city', 'latitude', 'longitude'],
-            index=pd.Index([], name='uid')
-        )
-        
-        # Friends contains entries u: v, and v: u
-        # for each pair of friends (u, v).
-        self.friends = pd.Series()
-
-        # Subscriptions contains entry u: g if user u is member of group g.
-        self.subscriptions = pd.Series()
-
-        # Members is inverse of subscriptions:
-        # it contains entry g: u if user u is member of g.
-        self.members = pd.Series()
-        
-        self.user_attributes = pd.Series(
-            index=pd.Index([], name=['uid', 'attribute'])
-        )
-
-        self.group_attributes = pd.Series(
-            index=pd.Index([], name=['uid', 'attribute'])
-        )
-        
-    def __init__(self, filename=None, **kwargs):
+    def __init__(self, path=None, **kwargs):
         """Creates new community.
 
         If file is provided, load community data from it.
         Create empty community otherwise.
 
         Args:
-            filename: path to the file with community data.
+            path: path to the json file or folder with csv files
+                containing community data.
             **kwargs: values of tables.
         """
         self.fields = [
-            'users', 'groups', 'cities', 'universities',
-            'friends', 'members', 'subscriptions',
-            'user_attributes', 'group_attributes'
+            '_users', '_groups', '_cities', '_universities',
+            '_friends', '_members', '_subscriptions',
+            '_user_attributes', '_group_attributes',
         ]
         
-        if filename:
-            with pd.HDFStore(filename) as store:
-                for field in self.fields:
-                    self.__dict__[field] = store[field]
-        else:
-            self._create()
-            for name in filter(kwargs.__contains__, self.fields):
-                self.__dict__[name] = self.__dict__[name].append(kwargs[name])
+        if path:
+            json = load(open(path))
 
-        # Infer one of [members, subscriptions] from another.
-        if self.members.empty:
-            self.members = pd.Series(
-                self.subscriptions.index,
-                index=self.subscriptions
-            )
-        elif self.subscriptions.empty:
-            self.subscriptions = pd.Series(
-                self.members.index,
-                index=self.members
-            )
+        for field in self.fields:
+            self.__dict__[field] = json[field] if path else {}
 
-    def save(self, filename):
-        """Save data to file in HDF5 format
+        for key, value in kwargs.items():
+            field = '_' + key
+            if field in self.fields:
+                self.__dict__[field] = value
+
+        for user_id in self._users:
+            self._users[user_id] = User(*self._users[user_id])
+
+    def save_json(self, path):
+        """Save data to file in JSON format
 
         Args:
-            filename: path to file.
+            path: path to file.
         """
-        with pd.HDFStore(filename) as store:
-            for field in self.fields:
-                store[field] = self.__dict__[field]
+        data = {field: self.__dict__[field] for field in self.fields}
+        dump(data, open(path, 'w'), indent=2, ensure_ascii=False)
 
     def filter_users(self, predicate):
         """Get community containing all users that satisfy given predicate.
@@ -312,37 +178,46 @@ class Community(object):
         Returns:
             Community object.
         """
-        good_users = {
-            user.uid
-            for user in self.get_users_list()
+        users = {
+            user.uid: self._users[user.uid]
+            for user in self.get_users()
             if predicate(user)
         }
-        indexer = list(good_users)
 
-        users = self.users.loc[list(good_users)]
+        friends = {
+            user_id: [
+                friend_id
+                for friend_id in self._friends[user_id]
+                if friend_id in users
+            ]
+            for user_id in users
+        }
 
-        friends = self.friends.loc[indexer]
-        friends = friends[friends.apply(good_users.__contains__)]
+        subscriptions = {
+            user_id: self._subscriptions[user_id]
+            for user_id in users
+        }
 
-        subscriptions = self.subscriptions.loc[indexer]
+        members = {}
+        for group_id, members_list in self._members.items():
+            pack = [member for member in members_list if member in users]
+            if pack:
+                members[group_id] = pack
 
-        members = self.members[self.members.apply(good_users.__contains__)]
+        groups = {group_id: self._groups[group_id] for group_id in members}
 
-        groups = self.groups.loc[list(set(self.subscriptions))]
+        user_attributes = {
+            user_id: self._user_attributes[user_id]
+            for user_id in users
+        }
 
-        user_attributes = self.user_attributes.sort_index()
-        if not user_attributes.empty:
-            user_attributes = user_attributes.loc[indexer, :]
+        group_attributes = {
+            group_id: self._group_attributes[group_id]
+            for group_id in groups
+        }
 
-        group_attributes = self.group_attributes.sort_index()
-        if not group_attributes.empty:
-            group_attributes = group_attributes.loc[groups, :]
-
-        city_indexer = list(set(users.city_id.dropna()))
-        cities = self.cities.loc[city_indexer]
-
-        university_indexer = list(set(users.university_id.dropna()))
-        universities = self.universities.loc[university_indexer]
+        cities = self._cities
+        universities = self._universities
 
         return Community(
             users=users,
@@ -353,24 +228,26 @@ class Community(object):
             user_attributes=user_attributes,
             group_attributes=group_attributes,
             cities=cities,
-            universities=universities
+            universities=universities,
         )
 
-    def group_list(self):
+    def get_groups(self):
         """Get list of group objects.
 
         Returns:
-            List of Community.Group objects.
+            Sequence of Community.Group objects.
         """
-        return [self.get_group(uid) for uid in self.groups.index]
+        for group_id in self._group:
+            yield self.get_group(group_id)
 
-    def get_users_list(self):
+    def get_users(self):
         """Get list of user objects.
 
         Returns:
-            List of Community.User objects.
+            Sequence of Community.User objects.
         """
-        return [self.get_user(uid) for uid in self.users.index]
+        for user_id in self._users:
+            yield self.get_user(user_id)
             
     def get_user(self, uid):
         """Get user with given id.
@@ -395,15 +272,35 @@ class Community(object):
         return Community.Group(self, uid)
 
     def get_edgelist(self):
-        """Get list of edges of community graph.
+        """Get sequence of edges of community graph.
 
         Returns:
-            List of pairs of Community.User objects.
+            Sequence of pairs of Community.User objects.
             For each pair of friends {u, v},
             there are entries (u, v) and (v, u).
         """
-        ids2users = partial(map, self.get_user)
-        return list(zip(ids2users(self.friends), ids2users(self.friends.index)))
+        for user in self.get_users():
+            for friend in user.friends:
+                yield (user, friend)
+
+    def get_users_table(self):
+        """Get pandas DataFrame with users.
+
+        Returns:
+            DataFrame object.
+        """
+        return pd.DataFrame.from_items(
+            items=(
+                (user.uid, (
+                    user.name, user.age, user.city, user.university,
+                    user.last_seen, len(user.friends), len(user.groups),
+                ))
+                for user in self.get_users()
+            ),
+            columns=['Name', 'Age', 'City', 'University',
+                     'Last Seen', 'Number of friends', 'Number of groups'],
+            orient='index',
+        )
 
     def friends_graph(self):
         """Converts community to NetworkX graph using Community.User objects as
@@ -413,7 +310,7 @@ class Community(object):
             networkx.Graph object.
         """
         g = nx.Graph()
-        g.add_nodes_from(self.get_users_list())
+        g.add_nodes_from(self.get_users())
         g.add_edges_from(self.get_edgelist())
 
         return g
@@ -424,12 +321,12 @@ class Community(object):
         Args:
             embed: True if map should be drawn in IPython Notebook cell.
         """
-        counter = Counter(u.city_id for u in self.get_users_list())
+        counter = Counter(u.city_id for u in self.get_users())
         data = []
         for city_id, count in counter.items():
             if np.isnan(city_id):
                 continue
-            lat, lon = self.cities.loc[int(city_id)][['latitude', 'longitude']]
+            name, lat, lon = self._cities[city_id]
             if (lat, lon) != (None, None):
                 data.append((lon, lat, count * 3))
         xs, ys, sizes = list(zip(*data))

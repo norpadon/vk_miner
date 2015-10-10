@@ -56,7 +56,7 @@ api = Fetcher(user_login='<Ваш номер телефона или email>', us
 ds = load_friends_bfs(api, [170100773], 2)
 
 #Сохраняем их
-ds.save('my_friends.hdf5')
+ds.save_hdf5('my_friends.hdf5')
 
 #Выкидываем всех друзей друзей
 ds = ds.filter_users(lambda u: u.layer < 2)
