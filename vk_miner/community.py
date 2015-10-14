@@ -4,7 +4,6 @@
 
 __author__ = 'Artur Chakhvadze (norpadon@yandex.ru)'
 
-import os
 from functools import *
 from collections import Counter
 from json import load, dump

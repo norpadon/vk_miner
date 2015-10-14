@@ -103,7 +103,7 @@ def parse_user(entry, users, cities, universities):
         if len(dmy) == 3:
             age = 2015 - int(dmy[2])
 
-    last_seen = datetime.min
+    last_seen = ''
     if 'last_seen' in entry and entry['last_seen']:
         last_seen = int(entry['last_seen']['time'])
         last_seen = str(datetime.fromtimestamp(last_seen))
