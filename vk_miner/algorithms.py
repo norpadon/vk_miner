@@ -90,7 +90,7 @@ def load_friends_bfs(api, roots, depth, preloaded=None):
                 result = yield api.execute.getUserData(user_id=uid)
                 log_user_loaded()
                 return parse_item(result)
-            except VkAPIMethodError as e:
+            except (VkAPIMethodError, KeyError) as e:
                 print(e)
                 return {}
 
